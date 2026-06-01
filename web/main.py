@@ -65,9 +65,12 @@ async def omdb_proxy(t: str):
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
 
-# Mount static files folder to serve the frontend on http://localhost:8000/
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
+# Mount static files folder to serve the frontend on http://localhost:3000/
+# Use absolute path to ensure it works in production
+static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=3000, reload=True)
+
