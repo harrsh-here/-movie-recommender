@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Movie Recommender — Harrsh</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #faf9f7;
+      --surface: #ffffff;
+      --surface2: #f3f1ed;
+      --border: #e5e2db;
+      --text: #1a1814;
+      --muted: #7a7670;
+      --accent: #c8502a;
+      --accent-hover: #e8753a;
+      --tag-bg: #f0ece4;
+      --tag-text: #5a4a3a;
+      --success: #4a9e6a;
+      --error-bg: #fdf0ed;
+      --error-border: #f5c9be;
+      --error-text: #b03a1a;
+      --mock-bg: #fdf8f0;
+      --mock-border: #e8d5a0;
+      --mock-text: #8a6a1a;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── NAV ── */
+    nav {
+      padding: 1.25rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .nav-logo {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--text);
+      text-decoration: none;
+      letter-spacing: -0.01em;
+    }
+    .nav-links { display: flex; gap: 1.5rem; align-items: center; }
+    .nav-links a {
+      font-size: 0.85rem;
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .nav-links a:hover { color: var(--text); }
+    .nav-links .gh-btn {
+      background: var(--text);
+      color: var(--bg);
+      padding: 6px 14px;
+      border-radius: 3px;
+      font-size: 0.8rem;
+      font-weight: 500;
+    }
+    .nav-links .gh-btn:hover { background: var(--accent); color: #fff; }
+
+    /* ── MAIN WRAP ── */
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 4rem 2rem; }
+
+    /* ── HERO ── */
+    .hero {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5rem;
+      align-items: end;
+      margin-bottom: 5rem;
+      padding-bottom: 4rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .hero-left h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(2.4rem, 4vw, 3.4rem);
+      font-weight: 700;
+      line-height: 1.05;
+      letter-spacing: -0.025em;
+      color: var(--text);
+    }
+    .hero-left h1 em {
+      font-style: normal;
+      color: var(--accent);
+    }
+    .hero-left .sub {
+      margin-top: 1.25rem;
+      color: var(--muted);
+      font-size: 0.95rem;
+      line-height: 1.75;
+      font-weight: 300;
+      max-width: 380px;
+    }
+    .stats {
+      display: flex;
+      gap: 2.5rem;
+      margin-top: 2.5rem;
+    }
+    .stat .num {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.6rem;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1;
+    }
+    .stat .lbl {
+      font-size: 0.72rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-top: 4px;
+    }
+
+    /* ── SEARCH SIDE ── */
+    .hero-right {}
+    .field-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-bottom: 0.6rem;
+    }
+    .search-wrap {
+      position: relative;
+    }
+    .search-row {
+      display: flex;
+      border: 1.5px solid var(--border);
+      border-radius: 3px;
+      background: var(--surface);
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .search-row:focus-within { border-color: var(--accent); }
+    .search-row input {
+      flex: 1;
+      border: none;
+      outline: none;
+      padding: 0.9rem 1.1rem;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem;
+      background: transparent;
+      color: var(--text);
+    }
+    .search-row input::placeholder { color: #c0bdb8; }
+    .recommend-btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 0 1.4rem;
+      font-family: 'Syne', sans-serif;
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+    .recommend-btn:hover { background: var(--accent-hover); }
+    .recommend-btn:disabled { background: #c8c5bf; cursor: not-allowed; }
+    .dropdown {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0; right: 0;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 3px;
+      z-index: 200;
+      display: none;
+      max-height: 240px;
+      overflow-y: auto;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    }
+    .drop-item {
+      padding: 0.65rem 1.1rem;
+      font-size: 0.88rem;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.1s;
+      color: var(--text);
+    }
+    .drop-item:last-child { border-bottom: none; }
+    .drop-item:hover { background: var(--tag-bg); color: var(--accent); }
+    .quick-picks {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 0.8rem;
+    }
+    .qp {
+      background: var(--tag-bg);
+      border: 1px solid var(--border);
+      color: var(--tag-text);
+      padding: 4px 11px;
+      border-radius: 2px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .qp:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .err-box {
+      margin-top: 0.75rem;
+      background: var(--error-bg);
+      border: 1px solid var(--error-border);
+      border-radius: 3px;
+      padding: 0.65rem 1rem;
+      font-size: 0.85rem;
+      color: var(--error-text);
+      display: none;
+    }
+
+    /* ── BACKEND BAR ── */
+    .backend-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 0.6rem 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #d0cdc8;
+      flex-shrink: 0;
+      transition: background 0.3s;
+    }
+    .status-dot.on { background: var(--success); }
+    .status-dot.off { background: var(--accent); }
+    .backend-bar input {
+      flex: 1;
+      border: none;
+      outline: none;
+      background: transparent;
+      font-size: 0.8rem;
+      color: var(--muted);
+      font-family: 'DM Sans', sans-serif;
+    }
+    .backend-bar input::placeholder { color: #c0bdb8; }
+    .ping-btn {
+      font-size: 0.72rem;
+      color: var(--muted);
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      padding: 3px 10px;
+      border-radius: 2px;
+      transition: all 0.15s;
+      font-family: 'DM Sans', sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+    }
+    .ping-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--surface); }
+
+    /* ── MOCK NOTE ── */
+    .mock-note {
+      background: var(--mock-bg);
+      border: 1px solid var(--mock-border);
+      border-radius: 3px;
+      padding: 0.55rem 0.9rem;
+      font-size: 0.78rem;
+      color: var(--mock-text);
+      margin-bottom: 1.25rem;
+      display: none;
+    }
+    .mock-note.show { display: block; }
+
+    /* ── RESULTS HEADER ── */
+    .results-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+    }
+    .results-header h2 {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .results-header h2 em { font-style: italic; color: var(--accent); }
+    .results-header span {
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    /* ── GRID ── */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 1.25rem;
+    }
+
+    /* ── CARD ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    .card:hover { transform: translateY(-3px); border-color: var(--accent); }
+    .poster {
+      width: 100%;
+      aspect-ratio: 2 / 3;
+      background: var(--surface2);
+      overflow: hidden;
+    }
+    .poster img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.3s;
+    }
+    .card:hover .poster img { transform: scale(1.03); }
+    .poster-ph {
+      width: 100%; height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: #d0cdc8;
+    }
+    .poster-ph svg { width: 36px; height: 36px; }
+    .poster-ph span { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: #c0bdb8; }
+
+    .card-body { padding: 0.8rem; }
+    .card-title { font-size: 0.83rem; font-weight: 500; color: var(--text); line-height: 1.35; }
+    .card-year { font-size: 0.72rem; color: var(--muted); margin-top: 3px; }
+    .card-rating { font-size: 0.72rem; color: var(--accent); font-weight: 500; margin-top: 2px; }
+    .tags { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 7px; }
+    .tag {
+      background: var(--tag-bg);
+      color: var(--tag-text);
+      font-size: 0.63rem;
+      padding: 2px 6px;
+      border-radius: 2px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .card-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 9px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+    .plot-toggle {
+      font-size: 0.72rem;
+      color: var(--muted);
+      cursor: pointer;
+      transition: color 0.15s;
+      user-select: none;
+    }
+    .plot-toggle:hover { color: var(--accent); }
+    .search-link {
+      font-size: 0.72rem;
+      color: var(--muted);
+      cursor: pointer;
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .search-link:hover { color: var(--accent); }
+    .plot-panel {
+      padding: 0.75rem 0.8rem;
+      background: var(--surface2);
+      border-top: 1px solid var(--border);
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.65;
+      display: none;
+    }
+    .plot-panel.open { display: block; }
+    .plot-director {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+
+    /* ── SPINNER ── */
+    .spinner {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      padding: 5rem;
+    }
+    .spin-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: blink 1.2s ease-in-out infinite;
+    }
+    .spin-dot:nth-child(2) { animation-delay: 0.2s; }
+    .spin-dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes blink {
+      0%, 80%, 100% { opacity: 0.15; transform: scale(0.75); }
+      40% { opacity: 1; transform: scale(1); }
+    }
+
+    /* ── EMPTY STATE ── */
+    .empty {
+      text-align: center;
+      padding: 5rem 2rem;
+      color: var(--muted);
+    }
+    .empty svg { width: 56px; height: 56px; margin: 0 auto 1.25rem; display: block; opacity: 0.25; }
+    .empty p { font-size: 0.92rem; }
+
+    /* ── HOW IT WORKS ── */
+    .how-section {
+      margin-top: 5rem;
+      padding-top: 4rem;
+      border-top: 1px solid var(--border);
+    }
+    .how-section h3 {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 2.5rem;
+      color: var(--text);
+    }
+    .how-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 2rem;
+    }
+    .how-item {}
+    .how-num {
+      font-family: 'Syne', sans-serif;
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--border);
+      line-height: 1;
+      margin-bottom: 0.75rem;
+    }
+    .how-title {
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 0.4rem;
+    }
+    .how-desc { font-size: 0.82rem; color: var(--muted); line-height: 1.7; font-weight: 300; }
+
+    /* ── FOOTER ── */
+    footer {
+      margin-top: 5rem;
+      padding: 2rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    footer a { color: var(--muted); text-decoration: none; transition: color 0.15s; }
+    footer a:hover { color: var(--accent); }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 768px) {
+      .hero { grid-template-columns: 1fr; gap: 2.5rem; }
+      .wrap { padding: 2rem 1.25rem; }
+      nav { padding: 1rem 1.25rem; }
+      .how-grid { grid-template-columns: 1fr; gap: 1.5rem; }
+      footer { flex-direction: column; gap: 1rem; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="#" class="nav-logo">harrsh_here</a>
+  <div class="nav-links">
+    <a href="https://github.com/harrsh-here/-movie-recommender" target="_blank" class="gh-btn">GitHub ↗</a>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-left">
+      <h1>Find your<br>next<br><em>favourite</em><br>film.</h1>
+      <p class="sub">Type any movie title and get ten handpicked recommendations powered by collaborative filtering on the MovieLens 100k dataset.</p>
+      <div class="stats">
+        <div class="stat"><div class="num">100k</div><div class="lbl">ratings</div></div>
+        <div class="stat"><div class="num">1,682</div><div class="lbl">movies</div></div>
+        <div class="stat"><div class="num">943</div><div class="lbl">users</div></div>
+      </div>
+    </div>
+
+    <div class="hero-right">
+      <div class="field-label">Search a movie</div>
+      <div class="search-wrap">
+        <div class="search-row">
+          <input type="text" id="searchInput" placeholder="e.g. Toy Story (1995)" autocomplete="off">
+          <button class="recommend-btn" id="recBtn">Recommend →</button>
+        </div>
+        <div class="dropdown" id="dropdown"></div>
+      </div>
+      <div class="quick-picks" id="qpRow"></div>
+      <div class="err-box" id="errBox"></div>
+    </div>
+  </section>
+
+  <!-- RESULTS AREA -->
+  <section id="resultsArea">
+    <div class="empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+        <rect x="2" y="3" width="20" height="14" rx="2"/>
+        <path d="M8 21h8M12 17v4"/>
+      </svg>
+      <p>Enter a movie title above to get started</p>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="how-section">
+    <h3>How it works</h3>
+    <div class="how-grid">
+      <div class="how-item">
+        <div class="how-num">01</div>
+        <div class="how-title">Sparse rating matrix</div>
+        <div class="how-desc">The 100k user ratings are stored as a sparse user-item matrix where each cell holds a 1–5 star rating.</div>
+      </div>
+      <div class="how-item">
+        <div class="how-num">02</div>
+        <div class="how-title">KNN + cosine similarity</div>
+        <div class="how-desc">A K-Nearest Neighbours model computes cosine similarity between movie vectors to find the closest matches.</div>
+      </div>
+      <div class="how-item">
+        <div class="how-num">03</div>
+        <div class="how-title">Live metadata enrichment</div>
+        <div class="how-desc">Posters, genres, ratings, and plot summaries are pulled in real-time from the OMDb API for each result.</div>
+      </div>
+      <div class="how-item">
+        <div class="how-num">04</div>
+        <div class="how-title">FastAPI inference server</div>
+        <div class="how-desc">A lightweight Python backend loads the pre-built pickle model and serves recommendations in milliseconds.</div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  <span>Built by <a href="https://github.com/harrsh-here" target="_blank">Harrsh</a> · MovieLens 100k dataset · OMDb API</span>
+  <span><a href="https://github.com/harrsh-here/-movie-recommender" target="_blank">View source ↗</a></span>
+</footer>
+
+<script>
+  const OMDB_KEY = '968ca803';
+  const OMDB_URL = 'https://www.omdbapi.com/';
+  const BACKEND_URL_KEY = 'mr_backend_url';
+
+  const SAMPLES = [
+    'Toy Story (1995)', 'Pulp Fiction (1994)', 'The Godfather (1972)',
+    'Blade Runner (1982)', 'Schindler\'s List (1993)', 'GoodFellas (1990)'
+  ];
+
+  const MOCK_RECS = {
+    'toy story (1995)': ['GoodFellas (1990)','Forrest Gump (1994)','The Silence of the Lambs (1991)','Star Wars (1977)','Braveheart (1995)','The Shawshank Redemption (1994)','Fargo (1996)','Se7en (1995)','Die Hard (1988)','Raiders of the Lost Ark (1981)'],
+    'pulp fiction (1994)': ['GoodFellas (1990)','Fargo (1996)','The Silence of the Lambs (1991)','Se7en (1995)','The Shawshank Redemption (1994)','Forrest Gump (1994)','Star Wars (1977)','Blade Runner (1982)','Die Hard (1988)','Braveheart (1995)'],
+    'the godfather (1972)': ['GoodFellas (1990)','Schindler\'s List (1993)','The Shawshank Redemption (1994)','Pulp Fiction (1994)','Fargo (1996)','The Silence of the Lambs (1991)','Se7en (1995)','Forrest Gump (1994)','Braveheart (1995)','Star Wars (1977)'],
+    'default': ['GoodFellas (1990)','Fargo (1996)','Pulp Fiction (1994)','Blade Runner (1982)','Schindler\'s List (1993)','The Silence of the Lambs (1991)','Forrest Gump (1994)','The Shawshank Redemption (1994)','Braveheart (1995)','Se7en (1995)']
+  };
+
+  let allTitles = [...SAMPLES, 'GoodFellas (1990)', 'Fargo (1996)', 'The Shawshank Redemption (1994)', 'Braveheart (1995)', 'Se7en (1995)', 'Star Wars (1977)', 'Die Hard (1988)', 'Raiders of the Lost Ark (1981)', 'The Silence of the Lambs (1991)', 'Forrest Gump (1994)', 'The Fugitive (1993)', 'Schindler\'s List (1993)'];
+  let backendOnline = false;
+  let omdbCache = {};
+  let plotExpanded = {};
+  let richData = {}; // stores {title, genres, average_rating} from backend
+
+  // Restore saved backend URL
+  const savedUrl = localStorage.getItem(BACKEND_URL_KEY);
+
+  // Build quick picks
+  const qpRow = document.getElementById('qpRow');
+  SAMPLES.slice(0, 5).forEach(s => {
+    const btn = document.createElement('div');
+    btn.className = 'qp';
+    btn.textContent = s;
+    btn.addEventListener('click', () => {
+      document.getElementById('searchInput').value = s;
+      runInference();
+    });
+    qpRow.appendChild(btn);
+  });
+
+  // Search input events
+  const searchInput = document.getElementById('searchInput');
+  searchInput.addEventListener('input', e => handleInput(e.target.value));
+  searchInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') runInference();
+    if (e.key === 'Escape') closeDropdown();
+  });
+  document.getElementById('recBtn').addEventListener('click', runInference);
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.search-wrap')) closeDropdown();
+  });
+
+  function handleInput(val) {
+    const dd = document.getElementById('dropdown');
+    if (val.length < 1) { closeDropdown(); return; }
+    const matches = allTitles.filter(t => t.toLowerCase().includes(val.toLowerCase())).slice(0, 8);
+    if (!matches.length) { closeDropdown(); return; }
+    dd.innerHTML = matches.map(t =>
+      `<div class="drop-item" data-title="${encodeURIComponent(t)}">${t}</div>`
+    ).join('');
+    dd.querySelectorAll('.drop-item').forEach(el => {
+      el.addEventListener('click', () => {
+        searchInput.value = decodeURIComponent(el.dataset.title);
+        closeDropdown();
+        runInference();
+      });
+    });
+    dd.style.display = 'block';
+  }
+
+  function closeDropdown() {
+    document.getElementById('dropdown').style.display = 'none';
+  }
+
+  async function pingBackend() {
+    const urlEl = document.getElementById('backendUrlInput');
+    const dot = document.getElementById('statusDot');
+    if (!urlEl) return;
+    const url = urlEl.value.trim();
+    if (!url) { dot.className = 'status-dot'; backendOnline = false; return; }
+    localStorage.setItem(BACKEND_URL_KEY, url);
+    try {
+      const r = await fetch(url + '/movies', { signal: AbortSignal.timeout(4000) });
+      if (r.ok) {
+        const data = await r.json();
+        // Antigravity backend returns plain array, not {movies:[...]}
+        if (Array.isArray(data)) allTitles = data;
+        else if (data.movies && Array.isArray(data.movies)) allTitles = data.movies;
+        backendOnline = true;
+        dot.className = 'status-dot on';
+      } else { throw new Error(); }
+    } catch {
+      backendOnline = false;
+      dot.className = 'status-dot off';
+    }
+  }
+
+  // Auto-ping on page load using relative URL (works when served by FastAPI)
+  async function autoPing() {
+    try {
+      const r = await fetch('/movies', { signal: AbortSignal.timeout(3000) });
+      if (r.ok) {
+        const data = await r.json();
+        if (Array.isArray(data)) allTitles = data;
+        backendOnline = true;
+        const dot = document.getElementById('statusDot');
+        if (dot) dot.className = 'status-dot on';
+        const inp = document.getElementById('backendUrlInput');
+        if (inp && !inp.value) inp.value = window.location.origin;
+      }
+    } catch { /* silently fall through to mock mode */ }
+  }
+  autoPing();
+
+  async function runInference() {
+    const title = searchInput.value.trim();
+    const errBox = document.getElementById('errBox');
+    const area = document.getElementById('resultsArea');
+    const btn = document.getElementById('recBtn');
+    if (!title) return;
+
+    errBox.style.display = 'none';
+    btn.disabled = true;
+    closeDropdown();
+    area.innerHTML = '<div class="spinner"><div class="spin-dot"></div><div class="spin-dot"></div><div class="spin-dot"></div></div>';
+
+    let recs = [];
+    let isMock = false;
+
+    try {
+      // Always use relative URL — works locally and on Railway/Render
+      const r = await fetch('/recommend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ movie_title: title, num_recommendations: 10 }),
+        signal: AbortSignal.timeout(10000)
+      });
+      if (r.ok) {
+        const data = await r.json();
+        const raw = data.recommendations || [];
+        recs = raw.map(item => typeof item === 'string' ? item : item.title);
+        raw.forEach(item => {
+          if (typeof item === 'object' && item.title) richData[item.title] = item;
+        });
+      } else { throw new Error('backend_error'); }
+    } catch {
+      isMock = true;
+      const key = Object.keys(MOCK_RECS).find(k => k === title.toLowerCase());
+      recs = MOCK_RECS[key] || MOCK_RECS['default'];
+    }
+
+    if (!recs.length) {
+      errBox.textContent = `No results found for "${title}". Try a different title.`;
+      errBox.style.display = 'block';
+      area.innerHTML = '<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg><p>No matches found</p></div>';
+      btn.disabled = false;
+      return;
+    }
+
+    const savedBackend = localStorage.getItem(BACKEND_URL_KEY) || '';
+    area.innerHTML = `
+      <div class="mock-note ${isMock ? 'show' : ''}" id="mockNote">
+        Running in demo mode — backend not connected.
+      </div>
+      <div class="results-header">
+        <h2>Because you watched <em>${title}</em></h2>
+        <span>${recs.length} recommendations</span>
+      </div>
+      <div class="grid" id="recGrid"></div>
+    `;
+
+    const grid = document.getElementById('recGrid');
+    plotExpanded = {};
+    recs.forEach((rec, i) => buildCard(rec, i, grid));
+    btn.disabled = false;
+  }
+
+  function buildCard(title, i, container) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.id = 'card' + i;
+    // Pre-populate genres from backend rich data if available
+    const rich = richData[title];
+    const backendRating = rich && rich.average_rating ? '★ ' + rich.average_rating.toFixed(1) + ' / 5' : '';
+    const backendGenres = rich && rich.genres ? rich.genres : [];
+    card.innerHTML = `
+      <div class="poster" id="poster${i}">
+        <div class="poster-ph">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+            <rect x="2" y="2" width="20" height="20" rx="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <path d="M21 15l-5-5L5 21"/>
+          </svg>
+          <span>loading</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="card-title">${title}</div>
+        <div class="card-year" id="year${i}">—</div>
+        <div class="card-rating" id="rating${i}">${backendRating}</div>
+        <div class="tags" id="tags${i}">${backendGenres.slice(0,3).map(g => `<span class="tag">${g}</span>`).join('')}</div>
+        <div class="card-footer">
+          <span class="plot-toggle" id="toggle${i}">plot ↓</span>
+          <span class="search-link" data-query="${encodeURIComponent(title)}">search ↗</span>
+        </div>
+      </div>
+      <div class="plot-panel" id="plot${i}">
+        <div class="plot-director" id="director${i}"></div>
+        <div id="plotText${i}"></div>
+      </div>
+    `;
+    container.appendChild(card);
+    card.querySelector('.plot-toggle').addEventListener('click', () => togglePlot(i));
+    card.querySelector('.search-link').addEventListener('click', () => {
+      const q = decodeURIComponent(card.querySelector('.search-link').dataset.query);
+      window.open('https://www.google.com/search?q=' + encodeURIComponent(q + ' film'), '_blank');
+    });
+    fetchOMDB(title, i);
+  }
+
+  async function fetchOMDB(title, i) {
+    const clean = title.replace(/\s\(\d{4}\)$/, '').trim();
+    if (omdbCache[clean]) { applyOMDB(omdbCache[clean], i); return; }
+    try {
+      const r = await fetch(`${OMDB_URL}?t=${encodeURIComponent(clean)}&apikey=${OMDB_KEY}`);
+      const data = await r.json();
+      omdbCache[clean] = data;
+      applyOMDB(data, i);
+    } catch { applyOMDB(null, i); }
+  }
+
+  function applyOMDB(data, i) {
+    const posterEl = document.getElementById('poster' + i);
+    if (!data || data.Response === 'False') {
+      posterEl.innerHTML = '<div class="poster-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="2" width="20" height="20" rx="2"/><path d="M8 15l4-8 4 8"/></svg><span>no poster</span></div>';
+      return;
+    }
+    if (data.Poster && data.Poster !== 'N/A') {
+      posterEl.innerHTML = `<img src="${data.Poster}" alt="${data.Title || ''} poster" loading="lazy">`;
+    } else {
+      posterEl.innerHTML = '<div class="poster-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="2" width="20" height="20" rx="2"/><path d="M8 15l4-8 4 8"/></svg><span>no poster</span></div>';
+    }
+    const year = document.getElementById('year' + i);
+    const runtime = data.Runtime && data.Runtime !== 'N/A' ? ' · ' + data.Runtime : '';
+    if (data.Year && data.Year !== 'N/A') year.textContent = data.Year + runtime;
+
+    const rating = document.getElementById('rating' + i);
+    if (data.imdbRating && data.imdbRating !== 'N/A') rating.textContent = '★ ' + data.imdbRating + ' / 10';
+
+    const tagsEl = document.getElementById('tags' + i);
+    if (data.Genre && data.Genre !== 'N/A' && tagsEl.children.length === 0) {
+      data.Genre.split(', ').slice(0, 3).forEach(g => {
+        const span = document.createElement('span');
+        span.className = 'tag';
+        span.textContent = g;
+        tagsEl.appendChild(span);
+      });
+    }
+
+    const plotPanel = document.getElementById('plot' + i);
+    const dirEl = document.getElementById('director' + i);
+    const plotEl = document.getElementById('plotText' + i);
+    if (data.Director && data.Director !== 'N/A') dirEl.textContent = 'Dir. ' + data.Director;
+    if (data.Plot && data.Plot !== 'N/A') {
+      plotEl.textContent = data.Plot;
+    } else {
+      document.getElementById('toggle' + i).style.display = 'none';
+    }
+  }
+
+  function togglePlot(i) {
+    plotExpanded[i] = !plotExpanded[i];
+    const panel = document.getElementById('plot' + i);
+    const toggle = document.getElementById('toggle' + i);
+    panel.classList.toggle('open', plotExpanded[i]);
+    toggle.textContent = plotExpanded[i] ? 'plot ↑' : 'plot ↓';
+  }
+</script>
+
+</body>
+</html>

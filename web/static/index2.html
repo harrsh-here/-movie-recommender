@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Movie Recommender System</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --bg-primary: #05070a;
+            --bg-surface: #0a0c10;
+            --bg-card: #0d0f14;
+            --bg-card-hover: #12151d;
+            --accent-cyan: #00f5ff;
+            --accent-glow: rgba(0, 245, 255, 0.15);
+            --border: rgba(255, 255, 255, 0.05);
+            --text-primary: #f0f0f0;
+            --text-secondary: #8892b0;
+            --font-mono: 'JetBrains Mono', monospace;
+            --font-sans: 'Inter', sans-serif;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--bg-primary);
+            background-image: radial-gradient(rgba(0, 245, 255, 0.05) 1px, transparent 1px);
+            background-size: 24px 24px;
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        .font-mono-custom {
+            font-family: var(--font-mono);
+        }
+
+        /* Glow card border effect */
+        .glow-card {
+            border: 1px solid var(--border);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glow-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(0, 245, 255, 0.3);
+            box-shadow: 0 10px 30px -10px var(--accent-glow);
+        }
+
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--accent-cyan);
+            border-radius: 4px;
+        }
+
+        /* Loading animation */
+        @keyframes rotate {
+            100% { transform: rotate(360deg); }
+        }
+        .animate-spin-custom {
+            animation: rotate 2s linear infinite;
+        }
+
+        /* Glitch effect style */
+        .glitch-text::after {
+            content: attr(data-text);
+            position: absolute;
+            left: 2px;
+            text-shadow: -1px 0 #ff00c1;
+            top: 0;
+            color: var(--text-primary);
+            background: var(--bg-primary);
+            overflow: hidden;
+            clip: rect(0, 900px, 0, 0); 
+            animation: noise-anim 2s infinite linear alternate-reverse;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-[#00f5ff] selection:text-black">
+
+    <!-- Glowing top decorative element -->
+    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[350px] bg-[var(--accent-cyan)] opacity-[0.03] blur-[150px] rounded-full pointer-events-none"></div>
+
+    <!-- Main Container -->
+    <main class="relative z-10 max-w-5xl w-full mx-auto px-6 py-12 md:py-20 flex-grow flex flex-col gap-16">
+        
+        <!-- Header Section -->
+        <header class="flex flex-col items-center text-center gap-6">
+            <div class="flex items-center gap-3 px-4 py-1.5 rounded-full bg-white/[0.02] border border-white/5 font-mono-custom text-[10px] tracking-[0.3em] text-[#00f5ff] uppercase">
+                <span class="w-1.5 h-1.5 rounded-full bg-[#00f5ff] animate-pulse"></span>
+                Inference Node 01 // Active
+            </div>
+            
+            <h1 class="text-4xl md:text-6xl font-black font-mono-custom tracking-tight leading-none text-white">
+                MOVIE RECOMMENDER<span class="text-[#00f5ff]">_</span>
+            </h1>
+            
+            <p class="max-w-2xl text-sm md:text-base text-gray-400 leading-relaxed">
+                An intelligent recommendation engine running a K-Nearest Neighbors vector space representation. Inputs are checked against MovieLens interactions to construct similar item correlation ranks.
+            </p>
+        </header>
+
+        <!-- Discovery Search Center -->
+        <section class="w-full max-w-3xl mx-auto flex flex-col gap-5">
+            <div class="flex flex-col gap-1 px-1">
+                <span class="text-[10px] font-mono-custom text-[#00f5ff] uppercase tracking-[0.3em] font-bold">Discovery Engine</span>
+                <span class="text-[9px] text-gray-600 font-mono-custom">KNN_SIMILARITY // COSINE_METRIC</span>
+            </div>
+
+            <!-- Search Wrapper -->
+            <div class="relative group">
+                <!-- Blurred background accent -->
+                <div class="absolute -inset-1 bg-gradient-to-r from-[#00f5ff] to-blue-600 rounded-2xl blur-lg opacity-10 group-focus-within:opacity-25 transition duration-300"></div>
+                
+                <div class="relative flex items-center bg-[#080a0f] border border-white/5 rounded-xl overflow-hidden focus-within:border-[#00f5ff]/40 transition duration-300">
+                    <div class="pl-5 pr-3 text-gray-500">
+                        <i data-lucide="search" class="w-5 h-5"></i>
+                    </div>
+                    <input 
+                        type="text" 
+                        id="movie-input"
+                        placeholder="Search for a movie title (e.g., Toy Story, Star Wars)..." 
+                        class="w-full bg-transparent py-5 px-2 text-white outline-none placeholder:text-gray-600 text-sm md:text-base font-medium"
+                        autocomplete="off"
+                    >
+                    <button 
+                        id="search-btn"
+                        class="bg-[#00f5ff] hover:bg-white text-black font-mono-custom font-bold px-8 h-[60px] flex items-center gap-2 transition duration-200 uppercase tracking-widest text-xs active:scale-95 shrink-0"
+                    >
+                        <i data-lucide="zap" class="w-4 h-4"></i>
+                        Run
+                    </button>
+
+                    <!-- Autocomplete dropdown suggestions -->
+                    <div 
+                        id="autocomplete-dropdown" 
+                        class="hidden absolute left-0 right-0 top-[108%] bg-[#080a0f] border border-white/10 rounded-xl shadow-[0_15px_40px_rgba(0,0,0,0.8)] max-h-60 overflow-y-auto z-50 backdrop-blur-xl divide-y divide-white/5"
+                    >
+                        <!-- Suggestions will load here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fast-Inference Chips -->
+            <div class="flex items-center gap-3 overflow-x-auto py-2 no-scrollbar scroll-smooth">
+                <span class="text-[9px] font-mono-custom text-gray-500 uppercase tracking-widest shrink-0">Sample Queries:</span>
+                <div class="flex gap-2 shrink-0" id="quick-chips">
+                    <!-- Chips are rendered dynamically -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Dynamic Results Space -->
+        <section id="results-section" class="hidden flex flex-col gap-8 min-h-[300px]">
+            <div class="flex items-center justify-between border-b border-white/5 pb-4">
+                <div class="flex flex-col gap-1">
+                    <h3 class="text-lg font-bold font-mono-custom flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-[#00f5ff] shadow-[0_0_8px_#00f5ff]"></span>
+                        Thematic Correlations
+                    </h3>
+                    <p class="text-[10px] text-gray-500 font-mono-custom" id="results-sub"></p>
+                </div>
+                <button 
+                    id="reset-btn"
+                    class="flex items-center gap-1 text-[10px] uppercase font-mono-custom tracking-widest text-gray-500 hover:text-[#00f5ff] transition"
+                >
+                    <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                    Reset
+                </button>
+            </div>
+
+            <!-- Movie Grid -->
+            <div id="movie-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Movie cards are injected here -->
+            </div>
+        </section>
+
+        <!-- Initial Placeholder State -->
+        <section id="placeholder-state" class="flex flex-col items-center justify-center py-20 text-center border border-white/[0.02] bg-white/[0.01] rounded-2xl">
+            <div class="relative mb-4">
+                <div class="absolute inset-0 bg-[#00f5ff]/10 blur-xl rounded-full"></div>
+                <i data-lucide="film" class="w-12 h-12 text-white/10 relative"></i>
+            </div>
+            <p class="text-gray-500 font-mono-custom text-[10px] uppercase tracking-[0.4em]">Engine Standby // Awaiting Input</p>
+        </section>
+
+        <!-- Loader State -->
+        <section id="loader-state" class="hidden flex flex-col items-center justify-center py-24 text-center">
+            <i data-lucide="refresh-cw" class="w-10 h-10 text-[#00f5ff] animate-spin-custom mb-4"></i>
+            <p class="text-gray-500 font-mono-custom text-[11px] uppercase tracking-[0.3em]">Calculating Distance Matrices...</p>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="w-full py-8 border-t border-white/[0.03] bg-black/20 text-center font-mono-custom text-[10px] text-gray-600 tracking-widest relative z-10">
+        © 2026 Movie Recommender System. Standalone Implementation.
+    </footer>
+
+    <!-- Frontend logic script -->
+    <script>
+        // OMDb API Fetch Details helper
+        async function fetchExtraDetails(title) {
+            try {
+                const cleanTitle = title.replace(/\s\(\d{4}\)$/, '').trim();
+                const res = await fetch(`https://www.omdbapi.com/?t=${encodeURIComponent(cleanTitle)}&apikey=968ca803`);
+                if (res.ok) return await res.json();
+            } catch (e) {
+                console.error("OMDb fetch failure", e);
+            }
+            return null;
+        }
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            const movieInput = document.getElementById("movie-input");
+            const searchBtn = document.getElementById("search-btn");
+            const dropdown = document.getElementById("autocomplete-dropdown");
+            const quickChipsContainer = document.getElementById("quick-chips");
+            const resultsSection = document.getElementById("results-section");
+            const movieGrid = document.getElementById("movie-grid");
+            const placeholderState = document.getElementById("placeholder-state");
+            const loaderState = document.getElementById("loader-state");
+            const resultsSub = document.getElementById("results-sub");
+            const resetBtn = document.getElementById("reset-btn");
+
+            let allMovies = [];
+
+            // Initialize Lucide icons
+            lucide.createIcons();
+
+            // Fetch autocomplete vocabulary
+            try {
+                const response = await fetch("/movies");
+                if (response.ok) {
+                    allMovies = await response.json();
+                }
+            } catch (e) {
+                console.error("Failed to load backend movies list. Using fallback index.", e);
+                allMovies = [
+                    "Toy Story (1995)", "GoldenEye (1995)", "Star Wars (1977)", 
+                    "Twelve Monkeys (1995)", "Get Shorty (1995)", "Blade Runner (1982)", "Alien (1979)"
+                ];
+            }
+
+            // Render sample query chips
+            const sampleMovies = ["Toy Story (1995)", "Star Wars (1977)", "Twelve Monkeys (1995)", "Blade Runner (1982)", "Alien (1979)"];
+            quickChipsContainer.innerHTML = sampleMovies.map(movie => `
+                <button class="px-4 py-1.5 rounded-full bg-white/[0.02] border border-white/5 text-gray-500 hover:text-[#00f5ff] hover:border-[#00f5ff]/40 font-mono-custom text-[10px] tracking-wider transition-all duration-200 select-none">
+                    ${movie}
+                </button>
+            `).join('');
+
+            // Click chip to query
+            quickChipsContainer.addEventListener("click", (e) => {
+                if (e.target.tagName === 'BUTTON') {
+                    const text = e.target.innerText.trim();
+                    movieInput.value = text;
+                    runInference(text);
+                }
+            });
+
+            // Autocomplete handling
+            movieInput.addEventListener("input", () => {
+                const val = movieInput.value.trim();
+                dropdown.innerHTML = "";
+                if (val.length < 2) {
+                    dropdown.classList.add("hidden");
+                    return;
+                }
+
+                const matches = allMovies.filter(m => m.toLowerCase().includes(val.toLowerCase())).slice(0, 8);
+                if (matches.length === 0) {
+                    dropdown.classList.add("hidden");
+                    return;
+                }
+
+                dropdown.innerHTML = matches.map(m => `
+                    <button class="w-full text-left px-5 py-3 hover:bg-[#00f5ff]/10 text-gray-400 hover:text-[#00f5ff] text-xs font-mono-custom tracking-wide transition-all select-none">
+                        ${m}
+                    </button>
+                `).join('');
+                dropdown.classList.remove("hidden");
+            });
+
+            // Selection from autocomplete
+            dropdown.addEventListener("click", (e) => {
+                if (e.target.tagName === 'BUTTON') {
+                    const selected = e.target.innerText.trim();
+                    movieInput.value = selected;
+                    dropdown.classList.add("hidden");
+                    runInference(selected);
+                }
+            });
+
+            // Close suggestions on outside click
+            document.addEventListener("mousedown", (e) => {
+                if (!dropdown.contains(e.target) && e.target !== movieInput) {
+                    dropdown.classList.add("hidden");
+                }
+            });
+
+            searchBtn.addEventListener("click", () => {
+                const query = movieInput.value.trim();
+                if (query) runInference(query);
+            });
+
+            movieInput.addEventListener("keydown", (e) => {
+                if (e.key === "Enter") {
+                    const query = movieInput.value.trim();
+                    if (query) runInference(query);
+                }
+            });
+
+            resetBtn.addEventListener("click", () => {
+                movieInput.value = "";
+                resultsSection.classList.add("hidden");
+                placeholderState.classList.remove("hidden");
+            });
+
+            // Run recommendation inference
+            async function runInference(movieTitle) {
+                dropdown.classList.add("hidden");
+                placeholderState.classList.add("hidden");
+                resultsSection.classList.add("hidden");
+                loaderState.classList.remove("hidden");
+
+                try {
+                    const response = await fetch("/recommend", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ movie_title: movieTitle, num_recommendations: 6 })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error("Movie not found or API offline");
+                    }
+
+                    const data = await response.json();
+                    resultsSub.innerText = `BASED ON SEARCH: "${movieTitle}"`;
+                    
+                    // Render empty cards structure first
+                    movieGrid.innerHTML = "";
+                    
+                    // Process recommendations sequentially to load OMDb details
+                    for (let i = 0; i < data.recommendations.length; i++) {
+                        const rec = data.recommendations[i];
+                        const cardId = `movie-card-${rec.id}`;
+                        
+                        // Append skeleton card placeholder
+                        const cardDiv = document.createElement("div");
+                        cardDiv.className = "bg-[#0d0f14] border border-white/5 p-6 rounded-2xl glow-card flex flex-col justify-between gap-5 opacity-0 transition-opacity duration-500";
+                        cardDiv.id = cardId;
+                        cardDiv.innerHTML = `
+                            <div class="flex items-start gap-4">
+                                <div class="w-14 h-20 bg-white/[0.03] border border-white/5 rounded-md flex items-center justify-center text-[#00f5ff] shrink-0 overflow-hidden shadow-md" id="poster-${rec.id}">
+                                    <i data-lucide="film" class="w-6 h-6 opacity-20"></i>
+                                </div>
+                                <div class="flex-grow flex flex-col gap-2">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-yellow-500/5 text-yellow-500/80 border border-yellow-500/10 text-[9px] font-bold">
+                                            <i data-lucide="star" class="w-3 h-3 fill-current"></i>
+                                            <span>${rec.average_rating.toFixed(1)}</span>
+                                        </div>
+                                    </div>
+                                    <h4 class="font-bold text-sm text-white tracking-tight line-clamp-2 leading-tight">${rec.title}</h4>
+                                </div>
+                            </div>
+                            <div class="flex flex-wrap gap-1.5">
+                                ${rec.genres.map(g => `<span class="text-[8px] font-mono-custom px-2 py-0.5 bg-white/[0.02] border border-white/5 rounded text-gray-500 uppercase tracking-widest">${g}</span>`).join('')}
+                            </div>
+                            <div class="hidden flex flex-col gap-3 py-3 border-t border-white/5 text-[11px] text-gray-400 leading-relaxed font-medium" id="details-${rec.id}">
+                                <p class="italic text-gray-400" id="plot-${rec.id}">Retrieving plot dossier...</p>
+                                <div class="grid grid-cols-2 gap-2 text-[10px] text-gray-500">
+                                    <div class="flex items-center gap-1"><i data-lucide="user" class="w-3.5 h-3.5 text-[#00f5ff]"></i> <span id="director-${rec.id}">-</span></div>
+                                    <div class="flex items-center gap-1"><i data-lucide="calendar" class="w-3.5 h-3.5 text-[#00f5ff]"></i> <span id="year-${rec.id}">-</span></div>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between border-t border-white/5 pt-4">
+                                <button class="flex items-center gap-1 px-3 py-1 bg-white/5 hover:bg-[#00f5ff]/10 border border-white/5 text-[9px] text-gray-500 hover:text-[#00f5ff] rounded font-mono-custom uppercase tracking-widest font-bold transition-all select-none" onclick="toggleDetails(${rec.id})">
+                                    <i data-lucide="chevron-down" class="w-3 h-3"></i> Analysis
+                                </button>
+                                <a href="https://www.google.com/search?q=${encodeURIComponent(rec.title)}+movie" target="_blank" class="p-1.5 bg-white/5 hover:bg-[#00f5ff]/10 text-gray-500 hover:text-[#00f5ff] rounded border border-white/5 transition">
+                                    <i data-lucide="external-link" class="w-3 h-3"></i>
+                                </a>
+                            </div>
+                        `;
+                        movieGrid.appendChild(cardDiv);
+                        lucide.createIcons({ node: cardDiv });
+
+                        // Animate card entrance delay
+                        setTimeout(() => {
+                            cardDiv.classList.remove("opacity-0");
+                        }, i * 100);
+
+                        // Asynchronously fetch extra details to fill
+                        fetchExtraDetails(rec.title).then(details => {
+                            if (details && details.Response !== "False") {
+                                // Update Poster image
+                                if (details.Poster && details.Poster !== "N/A") {
+                                    const posterDiv = document.getElementById(`poster-${rec.id}`);
+                                    posterDiv.innerHTML = `<img src="${details.Poster}" class="w-full h-full object-cover" alt="">`;
+                                }
+                                // Update analysis plot details
+                                document.getElementById(`plot-${rec.id}`).innerText = `"${details.Plot}"`;
+                                document.getElementById(`director-${rec.id}`).innerText = details.Director;
+                                document.getElementById(`year-${rec.id}`).innerText = details.Year;
+                            } else {
+                                document.getElementById(`plot-${rec.id}`).innerText = "No plot dossier found in public registers.";
+                            }
+                        });
+                    }
+
+                    loaderState.classList.add("hidden");
+                    resultsSection.classList.remove("hidden");
+
+                } catch (e) {
+                    console.error(e);
+                    alert("Could not load similarity search results. Ensure Python server is running.");
+                    loaderState.classList.add("hidden");
+                    placeholderState.classList.remove("hidden");
+                }
+            }
+        });
+
+        function toggleDetails(recId) {
+            const detailPanel = document.getElementById(`details-${recId}`);
+            const btn = detailPanel.nextElementSibling.firstElementChild;
+            
+            if (detailPanel.classList.contains("hidden")) {
+                detailPanel.classList.remove("hidden");
+                detailPanel.classList.add("animate-slide-down");
+                btn.innerHTML = `<i data-lucide="chevron-up" class="w-3 h-3"></i> Collapse`;
+            } else {
+                detailPanel.classList.add("hidden");
+                btn.innerHTML = `<i data-lucide="chevron-down" class="w-3 h-3"></i> Analysis`;
+            }
+            lucide.createIcons({ node: btn });
+        }
+    </script>
+</body>
+</html>
