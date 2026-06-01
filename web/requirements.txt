@@ -4,3 +4,4 @@ scikit-learn
 pandas
 numpy
 jinja2
+httpx

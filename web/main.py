@@ -1,4 +1,6 @@
 from fastapi import FastAPI, HTTPException
+import os
+import httpx
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -43,6 +45,25 @@ def recommend(payload: RecommendRequest):
     if recs is None:
         raise HTTPException(status_code=404, detail="Movie not found in the dataset index")
     return {"recommendations": recs}
+
+
+# Simple OMDb proxy to keep API key server-side. Frontend should call `/omdb?t=Title`.
+OMDB_URL = "https://www.omdbapi.com/"
+
+@app.get("/omdb")
+async def omdb_proxy(t: str):
+    key = os.environ.get("OMDB_KEY")
+    if not key:
+        raise HTTPException(status_code=500, detail="OMDB_KEY not configured")
+    try:
+        params = {"t": t, "apikey": key}
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(OMDB_URL, params=params)
+        if r.status_code != 200:
+            raise HTTPException(status_code=502, detail="OMDb fetch failed")
+        return r.json()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
 
 # Mount static files folder to serve the frontend on http://localhost:8000/
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
