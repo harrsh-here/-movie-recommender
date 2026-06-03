@@ -6,6 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List, Optional
 import dataset
+from pathlib import Path
 
 app = FastAPI(title="Movie Recommender API", version="1.0.0")
 
@@ -66,8 +67,10 @@ async def omdb_proxy(t: str):
         raise HTTPException(status_code=502, detail=str(e))
 
 # Mount static files folder to serve the frontend on http://localhost:8000/
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
+BASE_DIR = Path(__file__).resolve().parent
+
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=3000, reload=True)

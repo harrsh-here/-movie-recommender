@@ -795,6 +795,9 @@
 
   async function fetchOMDB(title, i) {
     const clean = title.replace(/\s\(\d{4}\)$/, '').trim();
+    clean = clean.replace(/^(.*),\s*(The|A|An)$/i, '$2 $1');
+
+  
     if (omdbCache[clean]) { applyOMDB(omdbCache[clean], i); return; }
     try {
       const r = await fetch(`/omdb?t=${encodeURIComponent(clean)}`);
