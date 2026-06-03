@@ -9,6 +9,9 @@ import dataset
 from pathlib import Path
 from fastapi.responses import FileResponse
 
+# 1. DEFINE BASE_DIR FIRST AT THE TOP
+BASE_DIR = Path(__file__).resolve().parent
+
 app = FastAPI(title="Movie Recommender API", version="1.0.0")
 
 # Enable CORS for local testing
@@ -67,13 +70,12 @@ async def omdb_proxy(t: str):
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
 
+# 2. NOW THIS SAFELY USES THE INSTANTIATED VARIABLE
 @app.get("/")
 async def serve_frontend():
     return FileResponse(str(BASE_DIR / "static" / "index.html"))
 
 # Mount static files folder to serve the frontend on http://localhost:8000/
-BASE_DIR = Path(__file__).resolve().parent
-
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
 if __name__ == "__main__":
