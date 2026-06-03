@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 import dataset
 from pathlib import Path
+from fastapi.responses import FileResponse
 
 app = FastAPI(title="Movie Recommender API", version="1.0.0")
 
@@ -65,6 +66,10 @@ async def omdb_proxy(t: str):
         return r.json()
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
+
+@app.get("/")
+async def serve_frontend():
+    return FileResponse(str(BASE_DIR / "static" / "index.html"))
 
 # Mount static files folder to serve the frontend on http://localhost:8000/
 BASE_DIR = Path(__file__).resolve().parent
