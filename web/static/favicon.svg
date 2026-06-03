@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 280">
+  <rect x="0" y="0" width="280" height="280" rx="48" fill="#1a1814"/>
+
+  <clipPath id="outer">
+    <rect x="0" y="0" width="280" height="280" rx="48"/>
+  </clipPath>
+
+  <g clip-path="url(#outer)">
+    <rect x="0" y="0" width="280" height="114" fill="#c8502a"/>
+    <line x1="30"  y1="0" x2="0"   y2="114" stroke="#1a1814" stroke-width="20"/>
+    <line x1="80"  y1="0" x2="50"  y2="114" stroke="#1a1814" stroke-width="20"/>
+    <line x1="130" y1="0" x2="100" y2="114" stroke="#1a1814" stroke-width="20"/>
+    <line x1="180" y1="0" x2="150" y2="114" stroke="#1a1814" stroke-width="20"/>
+    <line x1="230" y1="0" x2="200" y2="114" stroke="#1a1814" stroke-width="20"/>
+    <line x1="280" y1="0" x2="250" y2="114" stroke="#1a1814" stroke-width="20"/>
+    <line x1="330" y1="0" x2="300" y2="114" stroke="#1a1814" stroke-width="20"/>
+    <rect x="0" y="114" width="280" height="166" fill="#1a1814"/>
+  </g>
+
+  <circle cx="0"   cy="57" r="9" fill="#f5f0e8"/>
+  <circle cx="280" cy="57" r="9" fill="#f5f0e8"/>
+
+  <rect x="94"  y="134" width="24" height="96" rx="6" fill="white"/>
+  <rect x="162" y="134" width="24" height="96" rx="6" fill="white"/>
+  <rect x="118" y="178" width="44" height="20" rx="5" fill="white"/>
+</svg>
