@@ -1,6 +1,7 @@
 # 🎬 Movie Recommender System
 
-Live Demo: [Link Placeholder]
+Live Demo: [Movie Recommender →](https://harrsh-here-movie-recommender.up.railway.app)
+
 
 ## Overview
 A content-based movie recommendation engine built using the MovieLens 100k dataset. It identifies and recommends movies similar to a user's selection by analyzing genres and popularity metrics.
@@ -41,4 +42,6 @@ This project uses the **MovieLens 100k** dataset provided by GroupLens Research.
    The API will be available at `http://localhost:8000`.
 
 ## Screenshots
-[Add after deployment]
+<img width="1875" height="862" alt="image" src="https://github.com/user-attachments/assets/46a3a891-419d-4752-b587-c50580de99bc" />
+<img width="1897" height="971" alt="image" src="https://github.com/user-attachments/assets/cb195853-2536-4999-878d-cb72fe2b8238" />
+
