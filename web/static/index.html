@@ -29,6 +29,9 @@
       --mock-bg: #fdf8f0;
       --mock-border: #e8d5a0;
       --mock-text: #8a6a1a;
+      --correct-bg: #f0f7f3;
+      --correct-border: #b8dfc8;
+      --correct-text: #2a6a48;
     }
 
     html { scroll-behavior: smooth; }
@@ -229,6 +232,19 @@
       color: var(--error-text);
       display: none;
     }
+
+    /* ── AUTOCORRECT NOTICE ── */
+    .correct-box {
+      margin-top: 0.75rem;
+      background: var(--correct-bg);
+      border: 1px solid var(--correct-border);
+      border-radius: 3px;
+      padding: 0.65rem 1rem;
+      font-size: 0.85rem;
+      color: var(--correct-text);
+      display: none;
+    }
+    .correct-box.show { display: block; }
 
     /* ── BACKEND BAR ── */
     .backend-bar {
@@ -435,6 +451,11 @@
     }
     .empty svg { width: 56px; height: 56px; margin: 0 auto 1.25rem; display: block; opacity: 0.25; }
     .empty p { font-size: 0.92rem; }
+    .empty .empty-sub {
+      font-size: 0.78rem;
+      margin-top: 0.5rem;
+      opacity: 0.7;
+    }
 
     /* ── HOW IT WORKS ── */
     .how-section {
@@ -506,7 +527,6 @@
 
 <div class="wrap">
 
-  <!-- HERO -->
   <section class="hero">
     <div class="hero-left">
       <h1>Find your<br>next<br><em>favourite</em><br>film.</h1>
@@ -529,10 +549,10 @@
       </div>
       <div class="quick-picks" id="qpRow"></div>
       <div class="err-box" id="errBox"></div>
+      <div class="correct-box" id="correctBox"></div>
     </div>
   </section>
 
-  <!-- RESULTS AREA -->
   <section id="resultsArea">
     <div class="empty">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
@@ -543,7 +563,6 @@
     </div>
   </section>
 
-  <!-- HOW IT WORKS -->
   <section class="how-section">
     <h3>How it works</h3>
     <div class="how-grid">
@@ -580,7 +599,7 @@
 <script>
   const BACKEND_URL_KEY = 'mr_backend_url';
 
-const SAMPLES = [
+  const SAMPLES = [
     'Toy Story (1995)', 'Pulp Fiction (1994)', 'The Godfather (1972)',
     'Blade Runner (1982)', 'Schindler\'s List (1993)', 'GoodFellas (1990)'
   ];
@@ -596,10 +615,55 @@ const SAMPLES = [
   let backendOnline = false;
   let omdbCache = {};
   let plotExpanded = {};
-  let richData = {}; // stores {title, genres, average_rating} from backend
+  let richData = {};
 
-  // Restore saved backend URL
-  const savedUrl = localStorage.getItem(BACKEND_URL_KEY);
+  // ─────────────────────────────────────────────────────────────
+  // FUZZY MATCHING UTILITIES
+  // ─────────────────────────────────────────────────────────────
+
+  function getSimilarityScore(str1, str2) {
+    const s1 = str1.toLowerCase();
+    const s2 = str2.toLowerCase();
+
+    if (s1 === s2) return 1.0;
+    if (s1.length === 0 || s2.length === 0) return 0.0;
+
+    const track = Array(s2.length + 1).fill(null).map(() => Array(s1.length + 1).fill(null));
+    for (let i = 0; i <= s1.length; i++) track[0][i] = i;
+    for (let j = 0; j <= s2.length; j++) track[j][0] = j;
+
+    for (let j = 1; j <= s2.length; j++) {
+      for (let i = 1; i <= s1.length; i++) {
+        const indicator = s1[i - 1] === s2[j - 1] ? 0 : 1;
+        track[j][i] = Math.min(
+          track[j][i - 1] + 1,       // deletion
+          track[j - 1][i] + 1,       // insertion
+          track[j - 1][i - 1] + indicator // substitution
+        );
+      }
+    }
+
+    const distance = track[s2.length][s1.length];
+    return 1 - distance / Math.max(s1.length, s2.length);
+  }
+
+  function findClosestMovieTitle(inputTitle) {
+    let bestMatch = null;
+    let highestScore = 0;
+
+    for (const trueTitle of allTitles) {
+      const cleanTrueTitle = trueTitle.replace(/\s\(\d{4}\)$/, '').trim();
+      const score = getSimilarityScore(inputTitle, cleanTrueTitle);
+
+      if (score > highestScore) {
+        highestScore = score;
+        bestMatch = trueTitle;
+      }
+    }
+    return highestScore > 0.4 ? bestMatch : null;
+  }
+
+  // ─────────────────────────────────────────────────────────────
 
   // Build quick picks
   const qpRow = document.getElementById('qpRow');
@@ -627,6 +691,9 @@ const SAMPLES = [
   });
 
   function handleInput(val) {
+    const correctBox = document.getElementById('correctBox');
+    correctBox.className = 'correct-box';
+
     const dd = document.getElementById('dropdown');
     if (val.length < 1) { closeDropdown(); return; }
     const matches = allTitles.filter(t => t.toLowerCase().includes(val.toLowerCase())).slice(0, 8);
@@ -648,30 +715,6 @@ const SAMPLES = [
     document.getElementById('dropdown').style.display = 'none';
   }
 
-  async function pingBackend() {
-    const urlEl = document.getElementById('backendUrlInput');
-    const dot = document.getElementById('statusDot');
-    if (!urlEl) return;
-    const url = urlEl.value.trim();
-    if (!url) { dot.className = 'status-dot'; backendOnline = false; return; }
-    localStorage.setItem(BACKEND_URL_KEY, url);
-    try {
-      const r = await fetch(url + '/movies', { signal: AbortSignal.timeout(4000) });
-      if (r.ok) {
-        const data = await r.json();
-        // Antigravity backend returns plain array, not {movies:[...]}
-        if (Array.isArray(data)) allTitles = data;
-        else if (data.movies && Array.isArray(data.movies)) allTitles = data.movies;
-        backendOnline = true;
-        dot.className = 'status-dot on';
-      } else { throw new Error(); }
-    } catch {
-      backendOnline = false;
-      dot.className = 'status-dot off';
-    }
-  }
-
-  // Auto-ping on page load using relative URL (works when served by FastAPI)
   async function autoPing() {
     try {
       const r = await fetch('/movies', { signal: AbortSignal.timeout(3000) });
@@ -679,32 +722,55 @@ const SAMPLES = [
         const data = await r.json();
         if (Array.isArray(data)) allTitles = data;
         backendOnline = true;
-        const dot = document.getElementById('statusDot');
-        if (dot) dot.className = 'status-dot on';
-        const inp = document.getElementById('backendUrlInput');
-        if (inp && !inp.value) inp.value = window.location.origin;
       }
-    } catch { /* silently fall through to mock mode */ }
+    } catch { backendOnline = false; }
   }
   autoPing();
 
   async function runInference() {
-    const title = searchInput.value.trim();
+    let typedTitle = searchInput.value.trim();
     const errBox = document.getElementById('errBox');
+    const correctBox = document.getElementById('correctBox');
     const area = document.getElementById('resultsArea');
     const btn = document.getElementById('recBtn');
-    if (!title) return;
+    if (!typedTitle) return;
 
     errBox.style.display = 'none';
+    correctBox.className = 'correct-box'; 
     btn.disabled = true;
     closeDropdown();
     area.innerHTML = '<div class="spinner"><div class="spin-dot"></div><div class="spin-dot"></div><div class="spin-dot"></div></div>';
 
+    const correctedTitle = findClosestMovieTitle(typedTitle);
+
+    if (!correctedTitle) {
+      errBox.textContent = `No movie found matching "${typedTitle}". Please check your spelling or try a different title.`;
+      errBox.style.display = 'block';
+      area.innerHTML = `
+        <div class="empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+            <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+            <path d="M8 11h6M11 8v6" stroke-dasharray="2 2"/>
+          </svg>
+          <p>No matching movie found</p>
+          <p class="empty-sub">Try titles like "Pulp Fiction", "Toy Story", or "The Godfather"</p>
+        </div>`;
+      btn.disabled = false;
+      return;
+    }
+
+    const wasAutoCorrected = correctedTitle.toLowerCase() !== typedTitle.toLowerCase();
+    if (wasAutoCorrected) {
+      searchInput.value = correctedTitle; 
+      correctBox.textContent = `✦ Showing results for "${correctedTitle}" — did you mean this?`;
+      correctBox.className = 'correct-box show';
+    }
+
+    const title = correctedTitle; 
     let recs = [];
     let isMock = false;
 
     try {
-      // Always use relative URL — works locally and on Railway/Render
       const r = await fetch('/recommend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -733,7 +799,6 @@ const SAMPLES = [
       return;
     }
 
-    const savedBackend = localStorage.getItem(BACKEND_URL_KEY) || '';
     area.innerHTML = `
       <div class="mock-note ${isMock ? 'show' : ''}" id="mockNote">
         Running in demo mode — backend not connected.
@@ -755,7 +820,6 @@ const SAMPLES = [
     const card = document.createElement('div');
     card.className = 'card';
     card.id = 'card' + i;
-    // Pre-populate genres from backend rich data if available
     const rich = richData[title];
     const backendRating = rich && rich.average_rating ? '★ ' + rich.average_rating.toFixed(1) + ' / 5' : '';
     const backendGenres = rich && rich.genres ? rich.genres : [];
@@ -796,39 +860,14 @@ const SAMPLES = [
 
   async function fetchOMDB(title, i) {
     let clean = title.trim();
-    
-    // 1. Extract the year before cleaning up the string
+
     const yearMatch = clean.match(/\((\d{4})\)\s*$/);
     const backupYear = yearMatch ? yearMatch[1] : null;
-    
-    // Guard Clause: If there isn't a valid 4-digit year found, do not make an API request
-    if (!backupYear) {
-      applyOMDB(null, i);
-      return;
-    }
-    
-    // 2. Strip out the primary trailing year group
+
     clean = clean.replace(/\s\(\d{4}\)\s*$/, '').trim();
-    
-    // 3. Strip out secondary parentheses (e.g., "Seven (Se7en)" -> "Seven")
     clean = clean.replace(/\s*\([^)]*\)\s*$/, '').trim();
-    
-    // 4. Fix catalog grammar flips (e.g., "Rock, The" -> "The Rock")
-    clean = clean.replace(/^(.*),\s*(The|A|An)$/i, '$2 $1').trim();  
+    clean = clean.replace(/^(.*),\s*(The|A|An)$/i, '$2 $1').trim();
 
-    // 5. HARDCODED ALIAS FIXES (e.g., Se7en -> Seven)
-    // Matches variation structures cleanly case-insensitively
-    if (clean.toLowerCase() === 'se7en') {
-      clean = 'Seven';
-    }
-
-    // Guard Clause: If cleaning resulted in an empty string, abort API call
-    if (!clean) {
-      applyOMDB(null, i);
-      return;
-    }
-
-    // --- UPDATE THE CARD UI IMMEDIATELY ---
     const titleEl = document.querySelector(`#card${i} .card-title`);
     if (titleEl) titleEl.textContent = clean;
 
@@ -837,74 +876,69 @@ const SAMPLES = [
       if (yearEl) yearEl.textContent = backupYear;
     }
 
-    // 6. Cache & Fetch layer
-    if (omdbCache[clean]) { 
-      applyOMDB(omdbCache[clean], i); 
-      return; 
-    }
-    
+    if (omdbCache[clean]) { applyOMDB(omdbCache[clean], i); return; }
+
     try {
       const r = await fetch(`/omdb?t=${encodeURIComponent(clean)}`);
-      if (!r.ok) {
-        applyOMDB(null, i);
-        return;
-      }
       const data = await r.json();
       omdbCache[clean] = data;
       applyOMDB(data, i);
-    } catch (err) { 
-      // Silently swallow errors to keep the console clean
-      applyOMDB(null, i); 
-    }
+    } catch { applyOMDB(null, i); }
   }
 
   function applyOMDB(data, i) {
     const posterEl = document.getElementById('poster' + i);
     if (!data || data.Response === 'False') {
-      posterEl.innerHTML = '<div class="poster-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="2" width="20" height="20" rx="2"/><path d="M8 15l4-8 4 8"/></svg><span>no poster</span></div>';
+      posterEl.innerHTML = `
+        <div class="poster-ph">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+            <rect x="2" y="2" width="20" height="20" rx="2"/>
+            <path d="M9 15l2-2 4 4"/>
+          </svg>
+          <span>No Poster</span>
+        </div>`;
       return;
     }
+
     if (data.Poster && data.Poster !== 'N/A') {
-      posterEl.innerHTML = `<img src="${data.Poster}" alt="${data.Title || ''} poster" loading="lazy">`;
-    } else {
-      posterEl.innerHTML = '<div class="poster-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="2" y="2" width="20" height="20" rx="2"/><path d="M8 15l4-8 4 8"/></svg><span>no poster</span></div>';
-    }
-    const year = document.getElementById('year' + i);
-    const runtime = data.Runtime && data.Runtime !== 'N/A' ? ' · ' + data.Runtime : '';
-    if (data.Year && data.Year !== 'N/A') year.textContent = data.Year + runtime;
-
-    const rating = document.getElementById('rating' + i);
-    if (data.imdbRating && data.imdbRating !== 'N/A') rating.textContent = '★ ' + data.imdbRating + ' / 10';
-
-    const tagsEl = document.getElementById('tags' + i);
-    if (data.Genre && data.Genre !== 'N/A' && tagsEl.children.length === 0) {
-      data.Genre.split(', ').slice(0, 3).forEach(g => {
-        const span = document.createElement('span');
-        span.className = 'tag';
-        span.textContent = g;
-        tagsEl.appendChild(span);
-      });
+      posterEl.innerHTML = `<img src="${data.Poster}" alt="Poster" onerror="this.style.display='none'">`;
     }
 
-    const plotPanel = document.getElementById('plot' + i);
-    const dirEl = document.getElementById('director' + i);
-    const plotEl = document.getElementById('plotText' + i);
-    if (data.Director && data.Director !== 'N/A') dirEl.textContent = 'Dir. ' + data.Director;
-    if (data.Plot && data.Plot !== 'N/A') {
-      plotEl.textContent = data.Plot;
-    } else {
-      document.getElementById('toggle' + i).style.display = 'none';
+    if (data.Year) {
+      const yEl = document.getElementById('year' + i);
+      if (yEl) yEl.textContent = data.Year;
     }
+
+    const rEl = document.getElementById('rating' + i);
+    if (rEl && !rEl.textContent && data.imdbRating && data.imdbRating !== 'N/A') {
+      rEl.textContent = '★ ' + data.imdbRating + ' (IMDb)';
+    }
+
+    const tEl = document.getElementById('tags' + i);
+    if (tEl && tEl.children.length === 0 && data.Genre && data.Genre !== 'N/A') {
+      tEl.innerHTML = data.Genre.split(',').slice(0, 3).map(g => `<span class="tag">${g.trim()}</span>`).join('');
+    }
+
+    const dEl = document.getElementById('director' + i);
+    if (dEl && data.Director && data.Director !== 'N/A') dEl.textContent = 'Director: ' + data.Director;
+
+    const pEl = document.getElementById('plotText' + i);
+    if (pEl && data.Plot && data.Plot !== 'N/A') pEl.textContent = data.Plot;
   }
 
   function togglePlot(i) {
-    plotExpanded[i] = !plotExpanded[i];
     const panel = document.getElementById('plot' + i);
     const toggle = document.getElementById('toggle' + i);
-    panel.classList.toggle('open', plotExpanded[i]);
-    toggle.textContent = plotExpanded[i] ? 'plot ↑' : 'plot ↓';
+    if (!panel) return;
+    plotExpanded[i] = !plotExpanded[i];
+    if (plotExpanded[i]) {
+      panel.classList.add('open');
+      toggle.textContent = 'plot ↑';
+    } else {
+      panel.classList.remove('open');
+      toggle.textContent = 'plot ↓';
+    }
   }
 </script>
-
 </body>
 </html>
