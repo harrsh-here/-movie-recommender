@@ -795,16 +795,42 @@
   }
 
   async function fetchOMDB(title, i) {
-    let clean = title.replace(/\s\(\d{4}\)$/, '').trim();
-    clean = clean.replace(/^(.*),\s*(The|A|An)$/i, '$2 $1');  
-    if (omdbCache[clean]) { applyOMDB(omdbCache[clean], i); return; }
-    try {
-      const r = await fetch(`/omdb?t=${encodeURIComponent(clean)}`);
-      const data = await r.json();
-      omdbCache[clean] = data;
-      applyOMDB(data, i);
-    } catch { applyOMDB(null, i); }
+  let clean = title.trim();
+  
+  // 1. Extract the year before destroying it, just in case OMDb fails
+  const yearMatch = clean.match(/\((\d{4})\)\s*$/);
+  const backupYear = yearMatch ? yearMatch[1] : null;
+  
+  // 2. Strip out the primary trailing year group
+  clean = clean.replace(/\s\(\d{4}\)\s*$/, '').trim();
+  
+  // 3. THE MOVIELENS FIX: Strip out secondary parentheses (e.g., "Seven (Se7en)" -> "Seven")
+  clean = clean.replace(/\s*\([^)]*\)\s*$/, '').trim();
+  
+  // 4. Fix catalog grammar flips (e.g., "Rock, The" -> "The Rock")
+  clean = clean.replace(/^(.*),\s*(The|A|An)$/i, '$2 $1').trim();  
+
+  // --- UPDATE THE CARD UI IMMEDIATELY ---
+  // Fixes the main text title on the card
+  const titleEl = document.querySelector(`#card${i} .card-title`);
+  if (titleEl) titleEl.textContent = clean;
+
+  // Pre-fill our extracted year so the UI doesn't look empty while loading
+  if (backupYear) {
+    const yearEl = document.getElementById(`year${i}`);
+    if (yearEl) yearEl.textContent = backupYear;
   }
+
+  // 5. Cache & Fetch layer
+  if (omdbCache[clean]) { applyOMDB(omdbCache[clean], i); return; }
+  
+  try {
+    const r = await fetch(`/omdb?t=${encodeURIComponent(clean)}`);
+    const data = await r.json();
+    omdbCache[clean] = data;
+    applyOMDB(data, i);
+  } catch { applyOMDB(null, i); }
+}
 
   function applyOMDB(data, i) {
     const posterEl = document.getElementById('poster' + i);
