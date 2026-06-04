@@ -29,6 +29,9 @@
       --mock-bg: #fdf8f0;
       --mock-border: #e8d5a0;
       --mock-text: #8a6a1a;
+      --correct-bg: #f0f7f3;
+      --correct-border: #b8dfc8;
+      --correct-text: #2a6a48;
     }
 
     html { scroll-behavior: smooth; }
@@ -229,6 +232,19 @@
       color: var(--error-text);
       display: none;
     }
+
+    /* ── AUTOCORRECT NOTICE ── */
+    .correct-box {
+      margin-top: 0.75rem;
+      background: var(--correct-bg);
+      border: 1px solid var(--correct-border);
+      border-radius: 3px;
+      padding: 0.65rem 1rem;
+      font-size: 0.85rem;
+      color: var(--correct-text);
+      display: none;
+    }
+    .correct-box.show { display: block; }
 
     /* ── BACKEND BAR ── */
     .backend-bar {
@@ -435,6 +451,11 @@
     }
     .empty svg { width: 56px; height: 56px; margin: 0 auto 1.25rem; display: block; opacity: 0.25; }
     .empty p { font-size: 0.92rem; }
+    .empty .empty-sub {
+      font-size: 0.78rem;
+      margin-top: 0.5rem;
+      opacity: 0.7;
+    }
 
     /* ── HOW IT WORKS ── */
     .how-section {
@@ -529,6 +550,8 @@
       </div>
       <div class="quick-picks" id="qpRow"></div>
       <div class="err-box" id="errBox"></div>
+      <!-- AUTO-CORRECT NOTICE: shown when fuzzy match kicks in -->
+      <div class="correct-box" id="correctBox"></div>
     </div>
   </section>
 
@@ -596,7 +619,68 @@
   let backendOnline = false;
   let omdbCache = {};
   let plotExpanded = {};
-  let richData = {}; // stores {title, genres, average_rating} from backend
+  let richData = {};
+
+  // ─────────────────────────────────────────────────────────────
+  // FUZZY MATCHING UTILITIES
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * Levenshtein-based similarity score between two strings.
+   * Returns a value from 0 (completely different) to 1 (identical).
+   */
+  function getSimilarityScore(str1, str2) {
+    const s1 = str1.toLowerCase();
+    const s2 = str2.toLowerCase();
+
+    if (s1 === s2) return 1.0;
+    if (s1.length === 0 || s2.length === 0) return 0.0;
+
+    const track = Array(s2.length + 1).fill(null).map(() => Array(s1.length + 1).fill(null));
+    for (let i = 0; i <= s1.length; i++) track[0][i] = i;
+    for (let j = 0; j <= s2.length; j++) track[j][0] = j;
+
+    for (let j = 1; j <= s2.length; j++) {
+      for (let i = 1; i <= s1.length; i++) {
+        const indicator = s1[i - 1] === s2[j - 1] ? 0 : 1;
+        track[j][i] = Math.min(
+          track[j][i - 1] + 1,       // deletion
+          track[j - 1][i] + 1,       // insertion
+          track[j - 1][i - 1] + indicator // substitution
+        );
+      }
+    }
+
+    const distance = track[s2.length][s1.length];
+    return 1 - distance / Math.max(s1.length, s2.length);
+  }
+
+  /**
+   * Scans allTitles and returns the closest match to inputTitle.
+   * Strips the year from dataset titles before comparing so
+   * "Pulp Fictn" still matches "Pulp Fiction (1994)".
+   * Returns null if nothing is above the 40% confidence threshold.
+   */
+  function findClosestMovieTitle(inputTitle) {
+    let bestMatch = null;
+    let highestScore = 0;
+
+    for (const trueTitle of allTitles) {
+      // Strip year for a cleaner name-only comparison
+      const cleanTrueTitle = trueTitle.replace(/\s\(\d{4}\)$/, '').trim();
+      const score = getSimilarityScore(inputTitle, cleanTrueTitle);
+
+      if (score > highestScore) {
+        highestScore = score;
+        bestMatch = trueTitle;
+      }
+    }
+
+    // Only trust the match if it's at least 40% similar
+    return highestScore > 0.4 ? bestMatch : null;
+  }
+
+  // ─────────────────────────────────────────────────────────────
 
   // Restore saved backend URL
   const savedUrl = localStorage.getItem(BACKEND_URL_KEY);
@@ -627,6 +711,10 @@
   });
 
   function handleInput(val) {
+    // Hide any previous correction notice when user is typing again
+    const correctBox = document.getElementById('correctBox');
+    correctBox.className = 'correct-box';
+
     const dd = document.getElementById('dropdown');
     if (val.length < 1) { closeDropdown(); return; }
     const matches = allTitles.filter(t => t.toLowerCase().includes(val.toLowerCase())).slice(0, 8);
@@ -659,7 +747,6 @@
       const r = await fetch(url + '/movies', { signal: AbortSignal.timeout(4000) });
       if (r.ok) {
         const data = await r.json();
-        // Antigravity backend returns plain array, not {movies:[...]}
         if (Array.isArray(data)) allTitles = data;
         else if (data.movies && Array.isArray(data.movies)) allTitles = data.movies;
         backendOnline = true;
@@ -689,22 +776,54 @@
   autoPing();
 
   async function runInference() {
-    const title = searchInput.value.trim();
+    let typedTitle = searchInput.value.trim();
     const errBox = document.getElementById('errBox');
+    const correctBox = document.getElementById('correctBox');
     const area = document.getElementById('resultsArea');
     const btn = document.getElementById('recBtn');
-    if (!title) return;
+    if (!typedTitle) return;
 
     errBox.style.display = 'none';
+    correctBox.className = 'correct-box'; // hide correction notice
     btn.disabled = true;
     closeDropdown();
     area.innerHTML = '<div class="spinner"><div class="spin-dot"></div><div class="spin-dot"></div><div class="spin-dot"></div></div>';
+
+    // ── FUZZY AUTO-CORRECT ──────────────────────────────────────
+    const correctedTitle = findClosestMovieTitle(typedTitle);
+
+    if (!correctedTitle) {
+      // Input is complete gibberish — nothing in the dataset is close enough
+      errBox.textContent = `No movie found matching "${typedTitle}". Please check your spelling or try a different title.`;
+      errBox.style.display = 'block';
+      area.innerHTML = `
+        <div class="empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+            <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+            <path d="M8 11h6M11 8v6" stroke-dasharray="2 2"/>
+          </svg>
+          <p>No matching movie found</p>
+          <p class="empty-sub">Try titles like "Pulp Fiction", "Toy Story", or "The Godfather"</p>
+        </div>`;
+      btn.disabled = false;
+      return;
+    }
+
+    // Show an auto-correct notice only if the title actually changed
+    const wasAutoCorrected = correctedTitle.toLowerCase() !== typedTitle.toLowerCase();
+    if (wasAutoCorrected) {
+      searchInput.value = correctedTitle; // update the input field visually
+      correctBox.textContent = `✦ Showing results for "${correctedTitle}" — did you mean this?`;
+      correctBox.className = 'correct-box show';
+    }
+
+    const title = correctedTitle; // use the clean, corrected title from here on
+    // ────────────────────────────────────────────────────────────
 
     let recs = [];
     let isMock = false;
 
     try {
-      // Always use relative URL — works locally and on Railway/Render
       const r = await fetch('/recommend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -733,7 +852,6 @@
       return;
     }
 
-    const savedBackend = localStorage.getItem(BACKEND_URL_KEY) || '';
     area.innerHTML = `
       <div class="mock-note ${isMock ? 'show' : ''}" id="mockNote">
         Running in demo mode — backend not connected.
@@ -755,7 +873,6 @@
     const card = document.createElement('div');
     card.className = 'card';
     card.id = 'card' + i;
-    // Pre-populate genres from backend rich data if available
     const rich = richData[title];
     const backendRating = rich && rich.average_rating ? '★ ' + rich.average_rating.toFixed(1) + ' / 5' : '';
     const backendGenres = rich && rich.genres ? rich.genres : [];
@@ -795,42 +912,39 @@
   }
 
   async function fetchOMDB(title, i) {
-  let clean = title.trim();
-  
-  // 1. Extract the year before destroying it, just in case OMDb fails
-  const yearMatch = clean.match(/\((\d{4})\)\s*$/);
-  const backupYear = yearMatch ? yearMatch[1] : null;
-  
-  // 2. Strip out the primary trailing year group
-  clean = clean.replace(/\s\(\d{4}\)\s*$/, '').trim();
-  
-  // 3. THE MOVIELENS FIX: Strip out secondary parentheses (e.g., "Seven (Se7en)" -> "Seven")
-  clean = clean.replace(/\s*\([^)]*\)\s*$/, '').trim();
-  
-  // 4. Fix catalog grammar flips (e.g., "Rock, The" -> "The Rock")
-  clean = clean.replace(/^(.*),\s*(The|A|An)$/i, '$2 $1').trim();  
+    let clean = title.trim();
 
-  // --- UPDATE THE CARD UI IMMEDIATELY ---
-  // Fixes the main text title on the card
-  const titleEl = document.querySelector(`#card${i} .card-title`);
-  if (titleEl) titleEl.textContent = clean;
+    // 1. Extract the year before stripping it, as fallback
+    const yearMatch = clean.match(/\((\d{4})\)\s*$/);
+    const backupYear = yearMatch ? yearMatch[1] : null;
 
-  // Pre-fill our extracted year so the UI doesn't look empty while loading
-  if (backupYear) {
-    const yearEl = document.getElementById(`year${i}`);
-    if (yearEl) yearEl.textContent = backupYear;
+    // 2. Strip trailing year group
+    clean = clean.replace(/\s\(\d{4}\)\s*$/, '').trim();
+
+    // 3. THE MOVIELENS FIX: Strip secondary parentheses e.g. "Seven (Se7en)" → "Seven"
+    clean = clean.replace(/\s*\([^)]*\)\s*$/, '').trim();
+
+    // 4. Fix catalog grammar flips e.g. "Rock, The" → "The Rock"
+    clean = clean.replace(/^(.*),\s*(The|A|An)$/i, '$2 $1').trim();
+
+    // Update the card title to the cleaned name
+    const titleEl = document.querySelector(`#card${i} .card-title`);
+    if (titleEl) titleEl.textContent = clean;
+
+    if (backupYear) {
+      const yearEl = document.getElementById(`year${i}`);
+      if (yearEl) yearEl.textContent = backupYear;
+    }
+
+    if (omdbCache[clean]) { applyOMDB(omdbCache[clean], i); return; }
+
+    try {
+      const r = await fetch(`/omdb?t=${encodeURIComponent(clean)}`);
+      const data = await r.json();
+      omdbCache[clean] = data;
+      applyOMDB(data, i);
+    } catch { applyOMDB(null, i); }
   }
-
-  // 5. Cache & Fetch layer
-  if (omdbCache[clean]) { applyOMDB(omdbCache[clean], i); return; }
-  
-  try {
-    const r = await fetch(`/omdb?t=${encodeURIComponent(clean)}`);
-    const data = await r.json();
-    omdbCache[clean] = data;
-    applyOMDB(data, i);
-  } catch { applyOMDB(null, i); }
-}
 
   function applyOMDB(data, i) {
     const posterEl = document.getElementById('poster' + i);
@@ -860,7 +974,6 @@
       });
     }
 
-    const plotPanel = document.getElementById('plot' + i);
     const dirEl = document.getElementById('director' + i);
     const plotEl = document.getElementById('plotText' + i);
     if (data.Director && data.Director !== 'N/A') dirEl.textContent = 'Dir. ' + data.Director;
